@@ -17,7 +17,7 @@ CYAN = 0x00FFCC
 BLACK = (0, 0, 0)
 WHITE = 0xFFFFFF
 GREY = 0x7D7D7D
-GAME_COLORS = [RED, BLUE, YELLOW, GREEN, MAGENTA, CYAN]
+GAME_COLORS = [BLUE, YELLOW, GREEN, MAGENTA, CYAN]
 
 WIDTH = 800
 HEIGHT = 600
@@ -54,7 +54,7 @@ class Ball:
         if self.x + self.r >= WIDTH:
             #print(1)
             self.vx = -abs(self.vx)
-        if self.y - self.r + self.vy>= HEIGHT:
+        if self.y - self.r + self.vy >= HEIGHT:
             #print(2)
             self.vy = - abs(self.vy)
         if self.y + self.r + self.vy <= 0:
@@ -116,6 +116,7 @@ class Gun:
         #self.an = math.atan2((event.pos[1]-new_ball.y), (event.pos[0]-new_ball.x))
         new_ball.vx = self.f2_power * math.cos(self.an)
         new_ball.vy =  self.f2_power * math.sin(self.an)
+        print(self.f2_power)
         balls.append(new_ball)
         self.f2_on = 0
         #self.f2_power = 10
@@ -141,7 +142,7 @@ class Gun:
         pygame.draw.circle(self.screen, BLACK, (self.x + 37//2, self.y + 30 + 37//2), 37//2)
         pygame.draw.circle(self.screen, BLACK, (self.x + 132 - 37 // 2, self.y + 30 + 37//2),  37 // 2)
         pygame.draw.circle(self.screen, GREY, (self.x + 132//2, self.y - 13), 40//2)
-        pygame.draw.line(self.screen, GREY, [self.x + 132//2, self.y - 13], [self.bx, self.by], 23)
+        pygame.draw.line(self.screen, self.color, [self.x + 132//2, self.y - 13], [self.bx, self.by], 23)
 
     def power_up(self):
         if self.f2_on:
@@ -159,6 +160,8 @@ class Target:
         self.live = 1
     # FIXME: don't work!!! How to call this functions when object is created?
         self.new_target()
+        self.vx = randint(-7, 7)
+        self.vy = randint(-7, 7)
 
     def new_target(self):
         """ Инициализация новой цели. """
@@ -167,10 +170,11 @@ class Target:
         self.r = randint(2, 50)
         self.color = RED
         self.live = 1
-
+    '''
     def hit(self, points=1):
         """Попадание шарика в цель."""
         self.points += points
+    '''
 
     def draw(self):
         pygame.draw.circle(
@@ -179,16 +183,36 @@ class Target:
             (self.x, self.y),
             self.r
         )
+
+    def move(self):
+        if self.x - self.r <= 50:
+            self.vx = abs(self.vx)
+        if self.x + self.r >= WIDTH - 50:
+            #print(1)
+            self.vx = -abs(self.vx)
+        if self.y - self.r + self.vy >= HEIGHT - 200:
+            #print(2)
+            self.vy = - abs(self.vy)
+        if self.y + self.r + self.vy <= 50:
+            #print('smksmf')
+            self.vy = abs(self.vy)
+        self.x += self.vx
+        self.y += self.vy
+
+
+
 class TextObject:
     def __init__(self, screen):
         self.screen = screen
         self.field = pygame.font.Font(None, 36)
 
-    def GetText(self, scores):
+    def GetText(self, scores, x, y, text):
         self.scores = scores
-        self.text = 'Scores: ' + str(self.scores)
+        self.x = x
+        self.y = y
+        self.text = text + str(self.scores)
         self.ren = self.field.render(self.text, True, BLACK)
-        self.screen.blit(self.ren, (0,0))
+        self.screen.blit(self.ren, (self.x, self.y))
 
 pygame.init()
 pygame.font.init()
@@ -198,7 +222,11 @@ balls = []
 
 clock = pygame.time.Clock()
 gun = Gun(screen)
-target = Target(screen)
+targ_num = 2
+targets = []
+points = 0
+for i in range(targ_num):
+    targets.append(Target(screen))
 text = TextObject(screen)
 finished = False
 
@@ -206,8 +234,9 @@ while not finished:
     #print(balls)
     screen.fill(WHITE)
     gun.draw()
-    target.draw()
-    text.GetText(target.points)
+    for t in targets:
+        t.draw()
+    text.GetText(points - bullet, 0, 0, 'Scores: ')
 
     for b in balls:
         b.draw()
@@ -221,21 +250,26 @@ while not finished:
             gun.fire2_start(event)
         elif event.type == pygame.MOUSEBUTTONUP:
             gun.fire2_end(event)
+            gun.f2_power = 50
         elif event.type == pygame.MOUSEMOTION:
             gun.targetting(event)
+    for target in targets:
+        target.move()
 
     for b in balls:
         b.move(WIDTH, HEIGHT)
-        if b.y > 1.3 * HEIGHT:
+        if b.y > 1.1 * HEIGHT:
             balls.remove(b)
         #print(balls)
         #print(b.x, b.y)
         #print(b.hittest(target), target.live)
-        if b.hittest(target) and target.live:
-            target.live = 0
-            target.hit()
-            target.new_target()
-            print(target.points)
+        for target in targets:
+            if b.hittest(target) and target.live:
+                target.live = 0
+                #target.hit()
+                target.new_target()
+                points += 1
+            #print(target.points)
     gun.power_up()
 
 pygame.quit()
